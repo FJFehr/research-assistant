@@ -1,0 +1,1253 @@
+--- Page 1 ---
+
+[TITLE: "Does Context Matter? CONTEXTUALJUDGEBENCH for Evaluating LLM-based Judges in Contextual Settings"]
+[AUTHORS: "Austin Xu⋆, Srijan Bansal⋆, Yifei Ming, Semih Yavuz, Shafiq Joty Salesforce AI Research ⋆Co-lead, equal contribution. Correspondence: {austin.xu, srijanbansal}@salesforce.com"]
+[SECTION: "Abstract"]
+[TABLE]
+The large language model (LLM)-as-judge
+paradigm has been used to meet the demand
+for a cheap, reliable, and fast evaluation of
+model outputs during AI system development
+and post-deployment monitoring. While judge
+models—LLMs finetuned to specialize in as-
+sessing and critiquing model outputs—have
+been touted as general-purpose evaluators, they
+are typically evaluated only on non-contextual
+scenarios, such as instruction following. The
+omission of contextual settings—those where
+external information is used as context to gen-
+erate an output—is surprising given the increas-
+ing prevalence of retrieval-augmented genera-
+tion (RAG) and summarization use cases. Con-
+textual assessment is uniquely challenging, as
+evaluation often depends on practitioner pri-
+orities, leading to conditional evaluation cri-
+teria (e.g., comparing responses based on fac-
+tuality and then considering completeness if
+they are equally factual). To address the gap,
+we propose ContextualJudgeBench, a judge
+benchmark with 2,000 challenging response
+pairs across eight splits inspired by real-world
+contextual evaluation scenarios. We build our
+benchmark with a multi-pronged data construc-
+tion pipeline that leverages both existing hu-
+man annotations and model-based perturba-
+tions.
+Our comprehensive study across 11
+judge models and 9 general-purpose models
+reveals that the contextual information and its
+assessment criteria present a significant chal-
+lenge to even state-of-the-art models. For exam-
+ple, OpenAI’s o1, the best-performing model,
+barely reaches 55% consistent accuracy 1.
+[HIGHLIGHT yellow: "digm has been used to meet the deman a cheap, reliable, and fast evaluation el outputs during AI system developme"]
+[HIGHLIGHT yellow: "and post-deployment monitoring. While judge models—LLMs finetuned to specialize in as- sessing and critiquing model outputs—have been touted as general-purpose evaluators, they"]
+[HIGHLIGHT yellow: "ing prevalence of retrieval-augmented genera- tion (RAG) and summarization use cases. Con- textual assessment is uniquely challenging, as evaluation often depends on practitioner pri-"]
+[TABLE]
+[HIGHLIGHT yellow: "orities, leading to conditional evaluation cri- teria (e.g., comparing responses based on fac- tuality and then considering completeness if they are equally factual). To address the gap,"]
+[HIGHLIGHT yellow: "ses based on fa completeness address the ga"]
+[HIGHLIGHT yellow: "we propose ContextualJudgeBench, a judge benchmark with 2,000 challenging response pairs across eight splits inspired by real-world contextual evaluation scenarios. We build our"]
+[HIGHLIGHT yellow: "with 2,000 s eight splits evaluation s"]
+[HIGHLIGHT yellow: "benchmark with 2,000 challenging response pairs across eight splits inspired by real-world contextual evaluation scenarios. We build our benchmark with a multi-pronged data construc-"]
+is the LLM-as-judge approach, where relatively
+lightweight judge models are trained to evaluate
+and critique other model responses. Judge models
+are broadly touted as general-purpose evaluators
+(e.g., Vu et al. (2024); Alexandru et al. (2025)), ca-
+pable of being deployed across domains and evalua-
+tion settings. However, judges are rarely evaluated
+on contextual settings (Wang et al., 2024c; Saha
+et al., 2025; Ye et al., 2024), where the evaluated
+responses are generated from an externally pro-
+vided context rather than solely from the model’s
+parametric knowledge, like in retrieval-augmented
+generation (RAG) or summarization.
+As contextual generation systems gain promi-
+nence, specialized generators (Cohere Team, 2024;
+Contextual AI Team, 2024; Nguyen et al., 2024)
+have been developed to meet the stringent faithful-
+ness demands of business applications and high-
+risk fields, like medicine (Xiong et al., 2024) and
+[HIGHLIGHT yellow: "benchmark with a multi-pronged data construc- tion pipeline that leverages both existing hu- man annotations and model-based perturba- tions. Our comprehensive study across 11"]
+[HIGHLIGHT yellow: "tion pipeline that leverages both existing hu- man annotations and model-based perturba- tions. Our comprehensive study across 11 judge models and 9 general-purpose models"]
+[HIGHLIGHT yellow: "on settings. However, j n contextual settings ( t al., 2025; Ye et al., 20"]
+[NOTE right: "Evaluated from externally provided context."]
+[HIGHLIGHT yellow: "responses are generated from an externally pro- vided context rather than solely from the model’s parametric knowledge, like in retrieval-augmented generation (RAG) or summarization."]
+[SECTION: "1 Introduction"]
+In the LLM era, timely, affordable, and accu-
+rate evaluation of model responses is essential for
+model development and monitoring. One auto-
+mated evaluation solution available to practitioners
+1 Code
+Benchmark
+9541
+Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 9541–9564
+July 27 - August 1, 2025 ©2025 Association for Computational Linguistics
+
+--- Page 2 ---
+
+[HIGHLIGHT yellow: "law ing s"]
+[HIGHLIGHT yellow: "we evaluate if judges can assess accurate or in- accurate refusals, where a response that refuses to answer due to a perceived lack of evidence is"]
+law (Wiratunga et al., 2024). Reliably evaluat-
+ing such systems is increasingly important, but
+presents unique challenges. The presence of con-
+textual information magnifies the challenges that
+exist in non-contextual human evaluation (Liu et al.,
+2023b): Since contextual generation requires re-
+sponses to be faithful to the provided context,
+humans must first comprehend potentially long,
+domain-specific contexts before they can evaluate
+a response. This additional “hallucination detec-
+tion” step adds another layer of complexity on top
+of evaluating the substantive quality of responses.
+Taken together, contextual settings are the ideal
+candidate for automatic evaluation: LLMs have
+strong language understanding across specialized
+domains (Xie et al., 2023; Ke et al., 2025; Colombo
+et al., 2024) and have rapidly improving long-
+context comprehension abilities (Kamradt, 2023).
+Indeed, many recent benchmarks for contextual
+generation use prompted (Laban et al., 2024; Ja-
+covi et al., 2025) or finetuned (Friel et al., 2024)
+LLMs to serve as evaluators due to longer, more
+complex model outputs. However, to our knowl-
+edge, no benchmarks exist to measure the qual-
+ity of contextual evaluators. We bridge this gap
+by proposing ContextualJudgeBench, which con-
+sists of 2,000 challenging pairwise samples across
+8 splits that measure different evaluation criteria
+and settings. Fig. 1 showcases our dataset splits
+and benchmarking results. Our work complements
+existing contextual generation benchmarks by of-
+fering a way to assess contextual evaluators.
+The dominant criteria for the contextual evalu-
+ation center around faithfulness and answer rele-
+vancy (Es et al., 2023; Saad-Falcon et al., 2023;
+Jacovi et al., 2025; Laban et al., 2024). Such met-
+rics are often assigned independently in a pointwise
+manner, i.e., a model assigns a faithfulness score
+and a relevance score to a single response, with
+each score assigned without considering the other.
+ContextualJudgeBench, in contrast, proposes a pair-
+wise evaluation setup. This pairwise setup offers
+utility to practitioners (e.g., evaluation for A/B test-
+ing) while eliciting evaluations better aligned with
+human judgment from automatic evaluators (Wang
+et al., 2023; Liu et al., 2024a). However, directly
+using pointwise scores for pairwise comparisons
+can lead to ambiguity: If a response is more rele-
+vant but less faithful, is it better?
+To remedy this, we propose a principled condi-
+tional evaluation hierarchy (Sec. 3) that prioritizes
+refusal accuracy and response faithfulness. First,
+we evaluate if judges can assess accurate or in-
+accurate refusals, where a response that refuses
+to answer due to a perceived lack of evidence is
+compared against a substantive response. Given
+two substantive responses, we next assess based
+on faithfulness: Which response contains more fac-
+tually supported information? If two responses
+are equally faithful, then they are evaluated on
+completeness, with more thorough responses be-
+ing preferred. Finally, for two equally complete
+responses, they are evaluated based on concise-
+ness, as responses should not contain extraneous
+information, even if factual. The splits in Con-
+textualJudgeBench are carefully designed to test
+judges in each setting that arises in this hierarchy.
+Concretely, our contributions are:
+[HIGHLIGHT yellow: "ing such systems is increasingly important, but presents unique challenges. The presence of con- textual information magnifies the challenges that exist in non-contextual human evaluation (Liu et al., 2023b): Since contextual generation requires re-"]
+[HIGHLIGHT yellow: "where a response that refuse perceived lack of evidence a substantive response. Give"]
+[HIGHLIGHT yellow: "perceived lack of evid substantive response. ponses, we next assess"]
+[HIGHLIGHT yellow: "compared against a substantive response. Given two substantive responses, we next assess based on faithfulness: Which response contains more fac- tually supported information? If two responses"]
+[HIGHLIGHT yellow: "two substantive responses, we next assess based on faithfulness: Which response contains more fac- tually supported information? If two responses are equally faithful, then they are evaluated on"]
+[HIGHLIGHT yellow: "contextu faithful first com"]
+[HIGHLIGHT yellow: "eration requires re- provided context, d potentially long,"]
+[HIGHLIGHT yellow: "ported info y faithful, ess, with m"]
+[HIGHLIGHT yellow: "are equally fa completeness, ing preferred."]
+[HIGHLIGHT yellow: "are equally faithful, then they are evaluated on completeness, with more thorough responses be- ing preferred. Finally, for two equally complete responses, they are evaluated based on concise-"]
+[HIGHLIGHT yellow: "domain-specific contexts before they can evaluate a response. This additional “hallucination detec- tion” step adds another layer of complexity on top of evaluating the substantive quality of responses."]
+• With an emphasis on refusals and faithfulness,
+we propose a hierarchy that provides an “order of
+operations” for pairwise contextual evaluation.
+• We present ContextualJudgeBench, a benchmark
+for evaluating judge models consisting of 2,000
+response pairs across eight splits derived from
+real-world contextual outcomes.
+• We evaluate 11 judge models, ranging in size
+from 3.8B to 70B parameters along with 9 gen-
+eral purpose/reasoning models.
+[HIGHLIGHT yellow: "no benchmarks exist t contextual evaluators. oposing ContextualJudg"]
+[NOTE right: "What is inference time scaling?"]
+[TABLE]
+[HIGHLIGHT yellow: "intensive nature of contextual evaluation, our anal- ysis shows that inference-time scaling for judges may actually lead to performance degradations."]
+[HIGHLIGHT yellow: "The dominant criteria for the contextual evalu- ation center around faithfulness and answer rele- vancy (Es et al., 2023; Saad-Falcon et al., 2023; Jacovi et al., 2025; Laban et al., 2024). Such met-"]
+[SECTION: "2 Related work"]
+Our work, rather than evaluating contextual sys-
+tems, evaluates judge models as contextual evalu-
+ators. Here, we review current judge benchmarks
+and contextual evaluation setups.
+Evaluation for LLM-as-judges. LLM-as-judge
+is a generative evaluator paradigm where LLMs
+are trained to produce an evaluation (natural lan-
+guage explanation and judgment) given the original
+user input, evaluation protocol (rules and criteria
+for evaluation), and model responses as input. As
+the popularity of LLM-as-judges grows, numerous
+benchmarks have been proposed to evaluate these
+evaluators. These benchmarks are typically for
+specific domains, like instruction following (Zeng
+et al., 2023), fine-grained evaluation (Kim et al.,
+2023, 2024), bias (Park et al., 2024), reward model-
+[HIGHLIGHT yellow: "rics are often assigned independently in a pointwise manner, i.e., a model assigns a faithfulness score and a relevance score to a single response, with each score assigned without considering the other."]
+[HIGHLIGHT yellow: "each score assigned without considering the other. ContextualJudgeBench, in contrast, proposes a pair- wise evaluation setup. This pairwise setup offers utility to practitioners (e.g., evaluation for A/B test-"]
+[HIGHLIGHT yellow: "wise evaluation setup. This pairwise setup offers utility to practitioners (e.g., evaluation for A/B test- ing) while eliciting evaluations better aligned with human judgment from automatic evaluators (Wang"]
+[HIGHLIGHT yellow: "utility to practitioners (e.g., evaluation for A/B test- ing) while eliciting evaluations better aligned with human judgment from automatic evaluators (Wang et al., 2023; Liu et al., 2024a). However, directly"]
+[HIGHLIGHT yellow: "vant but less faithful, is it better? To remedy this, we propose a principled condi- tional evaluation hierarchy (Sec. 3) that prioritizes refusal accuracy and response faithfulness. First,"]
+[HIGHLIGHT yellow: "To remedy this, we propose a principled condi- tional evaluation hierarchy (Sec. 3) that prioritizes refusal accuracy and response faithfulness. First,"]
+[NOTE left: "Refusal is the most imporant. It means go retrieve again. Next is faithful. Is this grounded in your output."]
+
+--- Page 3 ---
+
+[NOTE left: "Should look at this reasoning one"]
+ing (Lambert et al., 2024; Frick et al., 2024; Gureja
+et al., 2024), or reasoning (Tan et al., 2024). While
+new judge benchmarks are challenging, none fo-
+cus on contextual evaluation.
+Of judge bench-
+marks, a subset of Eval-P (Li et al., 2023a) con-
+tains summarization pairs with the winner cho-
+sen by aggregating various criteria into an over-
+all score. InstruSum (Liu et al., 2023b) has also
+been used for judge evaluation (Wang et al., 2024b;
+Alexandru et al., 2025; Liu et al., 2024c). Contex-
+tualJudgeBench, in contrast, is dedicated entirely
+to contextual evaluation, requiring evaluation to
+be done in under-explored settings like RAG-QA
+along previously untested criteria such as refusal.
+Evaluation for contextual responses. RAG gen-
+erators have been typically evaluated with stan-
+dard knowledge-based QA tasks, e.g., Contex-
+tualBench (Nguyen et al., 2024), or with newer
+benchmarks that cover scenarios such as faithful-
+ness (Ming et al., 2024; Niu et al., 2024; Tang
+et al., 2024; Li et al., 2023b; Sadat et al., 2023),
+diverse domains (Friel et al., 2024), refusals (Peng
+et al., 2024), and reasoning (Wei et al., 2024; Kr-
+ishna et al., 2024). Because RAG settings have
+progressed beyond simple factoid answers, recent
+benchmarks have deployed carefully prompted
+frontier LLMs (e.g., Jacovi et al. (2025)) to per-
+form assessment in a pointwise manner, rather than
+using exact string matching (Nguyen et al., 2024).
+Initial evaluation efforts for RAG settings fo-
+cused on faithfulness, training hallucination detec-
+tors (Tang et al., 2024) as both sequence classifiers
+and generative models (Wang et al., 2024a; Ravi
+et al., 2024; Ramamurthy et al., 2024). More holis-
+tic evaluation systems with multiple metrics have
+recently been proposed, such as Es et al. (2023);
+Saad-Falcon et al. (2023). For the most part, these
+approaches involve specialized prompting (Es et al.,
+2023), using synthetic data generation to train spe-
+cialized evaluators (Saad-Falcon et al., 2023).
+Summarization evaluation has evolved from n-
+gram metrics like ROUGE (Lin, 2004) and ME-
+TEOR (Banerjee and Lavie, 2005) to contextual
+embedding model scorers (Zhang et al., 2020; Zhao
+et al., 2019; Yuan et al., 2021). However, these eval-
+uators cannot assess based on multiple criteria and
+tend to correlate poorly with humans. To evaluate
+quality, the primary focus has been on model-based
+factual verification (Laban et al., 2022; Cao and
+Wang, 2021; Goyal and Durrett, 2021; Kryscinski
+et al., 2020; Laban et al., 2023). Recent studies
+have shifted toward human annotations for finer-
+grained assessment (Song et al., 2024; Lee et al.,
+2024; Oh et al., 2025), focusing on metrics such
+as faithfulness and conciseness. As summarization
+has become more instruction-controllable, LLM
+evaluators have been tasked with more controlled
+assessments (Liu et al., 2023b; Laban et al., 2024).
+Our proposed work complements these existing
+benchmarks in summarization and RAG by evalu-
+ating contextual judges, rather than the generators.
+[HIGHLIGHT yellow: "et al., 2024; F r reasoning ( nchmarks ar"]
+[HIGHLIGHT yellow: "024; Oh et al. s faithfulness a as become m"]
+[HIGHLIGHT yellow: "025), focusin d conciseness. e instruction-c"]
+[HIGHLIGHT yellow: "dge benchmarks are cha contextual evaluation. a subset of Eval-P (Li"]
+[HIGHLIGHT yellow: "hmarks in summar g contextual judges,"]
+[SECTION: "3 ContextualJudgeBench"]
+[HIGHLIGHT yellow: "ualJudgeBench, in contra o contextual evaluation, e done in under-explore"]
+[HIGHLIGHT yellow: "aluation to e RAG-QA as refusal."]
+[HIGHLIGHT yellow: "tioners using AI systems. 30% of respondents in a Deloitte survey specifically cite trust loss due to hallucinations as a top concern. Hallucinations are especially unacceptable in contextual settings, as"]
+[HIGHLIGHT yellow: "ncern. Hallucinations a n contextual settings, enerate responses stric"]
+[HIGHLIGHT yellow: "especially unacceptable in contextual settings, as the model is expected to generate responses strictly based on the provided context. This grounding con- text is typically considered a gold-standard source"]
+[HIGHLIGHT yellow: "tualBench (Nguyen et al., 2024), or with newer benchmarks that cover scenarios such as faithful- ness (Ming et al., 2024; Niu et al., 2024; Tang et al., 2024; Li et al., 2023b; Sadat et al., 2023),"]
+[NOTE right: "This is very important."]
+[TABLE]
+[HIGHLIGHT yellow: "of knowledge. If the relevant information is absent, the model should refrain from responding rather than generate unsupported content. Motivated by real-world concerns, we propose a conditional eval-"]
+[HIGHLIGHT yellow: "at et al., 2 ), refusals ( et al., 202"]
+[HIGHLIGHT yellow: "(Friel et al., reasoning ( 4). Because"]
+[HIGHLIGHT yellow: "real-world concerns, we propose a conditional eval- uation workflow (Fig. 2) that prioritizes answerabil- ity and faithfulness before assessing other criteria. Each evaluation step in our workflow requires cre-"]
+[HIGHLIGHT yellow: "n workflow (Fig d faithfulness b evaluation step"]
+[HIGHLIGHT yellow: "progressed beyond simple factoid answers, recent benchmarks have deployed carefully prompted frontier LLMs (e.g., Jacovi et al. (2025)) to per- form assessment in a pointwise manner, rather than"]
+[HIGHLIGHT yellow: "benchmarks have deployed carefully prompted frontier LLMs (e.g., Jacovi et al. (2025)) to per- form assessment in a pointwise manner, rather than using exact string matching (Nguyen et al., 2024)."]
+[NOTE left: "Non verifiable situations like law and medicine. String matching is bad"]
+[HIGHLIGHT yellow: "two responses, from which a judge selects the “bet- ter” response based on our workflow. The pairwise setting is well-suited for judge-based evaluation as it aligns closely with human preferences (Wang et al., 2023; Liu et al., 2024a). We first describe"]
+[NOTE right: "Ahh they create them!
+Lets see how they do it? Can we do it from existing datasets? Can we do it with existing models?"]
+[HIGHLIGHT yellow: "al., 2024a). We first describe to create the pairwise samples. ontextualJudgeBench in four"]
+[SUBSECTION: "3.1 Dataset creation approach"]
+[HIGHLIGHT yellow: "2019; Yuan et al., 2021). However, these e s cannot assess based on multiple criteria a o correlate poorly with humans. To evalu"]
+[HIGHLIGHT yellow: "ssess based on multiple e poorly with humans. mary focus has been on m"]
+[NOTE right: "Perturbation is done by models. Which peturbations?"]
+[HIGHLIGHT yellow: "We employ two primary approaches to create Con- textualJudgeBench: utilizing existing human anno- tations and leveraging frontier models for criteria- based response perturbation."]
+[TABLE]
+[HIGHLIGHT yellow: "geBench: utilizing existing hu d leveraging frontier models f ponse perturbation."]
+[HIGHLIGHT yellow: "quality, the primary f factual verification Wang, 2021; Goyal a"]
+9543
+
+--- Page 4 ---
+
+[NOTE left: "Simple starting plate: 
+
+Take lexam, Generate plausible questions that cannot be answered. Thus we should have a refusal. Then take the answer and change one part of the answer such that it is factually incorrect.
+- Incorrect entity, Incorrect event, incorrect other hallucinations etc Need hallucination literature.
+- Next completeness Rewrite and Remove a part of the answer. This would be incomplete
+- Conciseness. Use the same tone language and to make more verbose. Include other information that is useless.
+
+Problem is that everything wrong is LLM generated.  Everything correct is the old perhaps already learned data"]
+[TABLE]
+[NOTE right: "To do this they use this question answering dataset."]
+[FIGURE 2: "A refusal and faithfulness-first contextual evaluation hierarchy, as assessed by ContextualJudgeBench."]
+[HIGHLIGHT yellow: "m LFRQA ( uld pick t"]
+questions from LFRQA (Han et al., 2024), where
+the judge should pick the substantive response,
+whereas Split 2 contains unanswerable questions
+from FaithEval (Ming et al., 2024), making refusal
+the correct choice. To construct Split 1, we use
+approach M1 from Sec. 3.1, using an LLM to gen-
+erate context-based refusals as negative responses
+to pair up with the provided positive responses. In
+Split 2, we again employ approach M1 to generate
+context-based refusal responses to correctly decline
+the question as positive responses and generate hal-
+lucinated (incorrect) responses as negative ones.
+See App. A.2 for generation prompt.
+[HIGHLIGHT yellow: "the judge should pick the substantive response, whereas Split 2 contains unanswerable questions from FaithEval (Ming et al., 2024), making refusal the correct choice. To construct Split 1, we use"]
+[NOTE left: "How do they select these?"]
+[HIGHLIGHT yellow: "scores or errors, either holistically or sentence- level. We select responses with significant differ- ences based on specific criterion to form pairs, enabling comparative assessments."]
+[HIGHLIGHT yellow: "the correct choice. To construct Split 1, we use approach M1 from Sec. 3.1, using an LLM to gen- erate context-based refusals as negative responses to pair up with the provided positive responses. In"]
+[NOTE right: "They use an LLM to generate the opposites. Which LLM?
+
+So given this question and this context we should always have enough information to answer. How do we get negatives? Different question ? or different context?"]
+[HIGHLIGHT yellow: "to pair up with the provided positive responses. In Split 2, we again employ approach M1 to generate context-based refusal responses to correctly decline the question as positive responses and generate hal- lucinated (incorrect) responses as negative ones. See App. A.2 for generation prompt."]
+[SUBSECTION: "3.3 Step 2: Faithfulness [splits 3 & 4]"]
+[NOTE left: "They generate the refusals and the unfaithful responses."]
+When evaluating two substantive responses, the
+first criterion is faithfulness, as a response cannot
+be considered accurate if it contains hallucinated
+content. Faithfulness measures the consistency of
+the response with the context: all factual statements
+in a faithful response must be attributable to the
+context, ensuring there are no hallucinations. Splits
+3 and 4 evaluate the judge’s ability to select the
+more faithful response for QA and summarization,
+respectively. Each pairwise sample is designed to
+include one substantively more faithful response,
+allowing the judge to choose the better response
+based solely on faithfulness.
+We construct Split 3 by combining multiple QA
+datasets. For QA-Feedback (Wu et al., 2023) and
+RAGTruth (Niu et al., 2024), we use the approach
+H to form pairs between RAG responses, annotated
+with either faithfulness scores or factuality errors.
+For LFRQA (Han et al., 2024), LFQA (Xu et al.,
+2023), and short queries from MRQA (Fisch et al.,
+2019), we treat the provided responses as factually
+correct (positive) and apply the approach M1 to
+generate factually inconsistent negative responses
+based on the context. See App. A.2 for prompt
+template. We manually review pairs to ensure their
+reliability. For Split 4, we use approach H to create
+summarization response pairs of different factual-
+ity levels. To ensure diversity, we sample contexts
+from Wan et al. (2024); Lee et al. (2024), which
+cover both topic-specific and general summariza-
+[HIGHLIGHT yellow: "ext that fits certain output criteria. s generating context-based refusals o y unfaithful responses."]
+[HIGHLIGHT yellow: "the context that fits certain output criteria. This includes generating context-based refusals or de- liberately unfaithful responses. Existing output modification [M2]: We use an"]
+[HIGHLIGHT yellow: "first criterion is faithfulness, as a response cannot be considered accurate if it contains hallucinated content. Faithfulness measures the consistency of the response with the context: all factual statements"]
+[HIGHLIGHT yellow: "content. Faithfulness measures the consistency of the response with the context: all factual statements in a faithful response must be attributable to the context, ensuring there are no hallucinations. Splits 3 and 4 evaluate the judge’s ability to select the"]
+[NOTE left: "Make more verbose or compressed."]
+[HIGHLIGHT yellow: "predefined criteria. This ca response more verbose n specific ways."]
+[HIGHLIGHT yellow: "include making the response more altering its content in specific ways."]
+[HIGHLIGHT yellow: "n the Contex g data sources, used, and repre"]
+[HIGHLIGHT yellow: "See App. A for details on the Contextual- JudgeBench datasets, including data sources, pair sampling approaches, prompts used, and represen- tative examples for each split."]
+[HIGHLIGHT yellow: "including data , prompts used, ach split."]
+[HIGHLIGHT yellow: "JudgeBench datasets, including data sources, pair sampling approaches, prompts used, and represen- tative examples for each split."]
+[SUBSECTION: "3.2 Step 1: QA refusal validity [splits 1 & 2]"]
+Knowing when to refuse to answer due to lack of
+information is a critical first step specific to RAG
+settings.2 Refusals can be viewed as a form of
+faithfulness: To remain faithful to the context, the
+model should refuse to hallucinate an answer if no
+relevant information is present. Conversely, the
+model should not refuse if the context is sufficient.
+Splits 1 and 2 of ContextualJudgeBench assess
+if judges can identify appropriate refusals. Each
+sample consists of a refusal (e.g., “The answer
+cannot be answered based on the context”) and a
+substantive response. Split 1 contains answerable
+[HIGHLIGHT yellow: "Knowing when to refuse to answer due to lack of information is a critical first step specific to RAG settings.2 Refusals can be viewed as a form of faithfulness: To remain faithful to the context, the"]
+[NOTE left: "Incredible!"]
+[HIGHLIGHT yellow: "pairs between RAG re r faithfulness scores o QA (Han et al., 2024)"]
+[HIGHLIGHT yellow: "ponses, annotated r factuality errors. LFQA (Xu et al.,"]
+[HIGHLIGHT yellow: "settings. Refusals can be viewed as a form of faithfulness: To remain faithful to the context, the model should refuse to hallucinate an answer if no relevant information is present. Conversely, the model should not refuse if the context is sufficient."]
+[HIGHLIGHT yellow: "model should refuse to hallucinate an answer if no relevant information is present. Conversely, the model should not refuse if the context is sufficient."]
+[HIGHLIGHT yellow: "2023), and short queries from MRQA (Fisch et al., 2019), we treat the provided responses as factually correct (positive) and apply the approach M1 to generate factually inconsistent negative responses"]
+[HIGHLIGHT yellow: "(positive) and apply the approach M1 to e factually inconsistent negative responses n the context. See App. A.2 for prompt"]
+[HIGHLIGHT yellow: "ontextualJudgeBench appropriate refusals. refusal (e.g., “The a"]
+[HIGHLIGHT yellow: "e context. See App. A. e manually review pairs t or Split 4, we use approa"]
+[HIGHLIGHT yellow: "proach H to create f different factual- we sample contexts"]
+[HIGHLIGHT yellow: "summariz ity levels. from Wan"]
+2Refusals are uncommon in summarization, as instructions
+and context are both user provided; In RAG settings, the user
+has no control over the retrieved context.
+9544
+
+--- Page 5 ---
+
+[HIGHLIGHT yellow: "pleteness, a content for responses may conta repeated c In Splits 7 response t the same f should firs complete, For Spli and QA-Fe we apply a sert direct modifying See App. Feedback, from respo dundancy, formed by by concise H, using h et al., 202 ness, comp 3.6 Over Contextual evaluation across 4 ev use cases splits) and domain dis in Tab. 1. O of 2,000 pr with over 1 cation. We from a few marization Response l maries ove bias in judg we ensure itive and n ever, conci resulting in 4 Evalu 4.1 Eval Because th decisions ( tency eval 45"]
+[HIGHLIGHT yellow: "pleteness, as an answer should not sacrifice relevant content for the sake of brevity. However, complete responses may not be minimally complete: They"]
+pleteness, as an answer should not sacrifice relevant
+content for the sake of brevity. However, complete
+responses may not be minimally complete: They
+may contain faithful yet extraneous information,
+repeated content, or unnecessary stylistic details.
+In Splits 7 and 8, each pairwise sample has one
+response that is more concise while maintaining
+the same faithfulness and completeness. Judges
+should first verify both responses are faithful and
+complete, then choose the more concise one.
+For Split 7, we use LFRQA (Han et al., 2024)
+and QA-Feedback (Wu et al., 2023). For LFRQA,
+we apply approach M2, tasking the model to in-
+sert direct quotations from the context without
+modifying the substance of provided responses.
+See App. A.2 for generation prompt. For QA-
+Feedback, we use approach H to create pairs
+from responses annotated along conciseness, re-
+dundancy, and irrelevance. Preference pairs are
+formed by pairing faithful and complete responses
+by conciseness. For split 8, we again use approach
+H, using human annotations (Lee et al., 2024; Liu
+et al., 2024b) that assess summarization faithful-
+ness, completeness, and conciseness.
+[NOTE right: "Contains fluff"]
+[HIGHLIGHT yellow: "ponses may not be minimally complete: They y contain faithful yet extraneous information, eated content, or unnecessary stylistic details."]
+[HIGHLIGHT yellow: "l yet extraneous information, unnecessary stylistic details. ach pairwise sample has one"]
+[HIGHLIGHT yellow: "may contain faithf repeated content, o In Splits 7 and 8,"]
+[FIGURE 3: "Distribution of context domain as a percent of the total set of preference pairs in the benchmark."]
+tion instructions across diverse domains.
+[SUBSECTION: "3.4 Step 3: Completeness [splits 5 & 6]"]
+Beyond faithfulness, contextual evaluation must
+also assess response quality. When comparing two
+faithful responses, the better one should cover all
+essential information needed for a thorough and
+useful answer. As such, we consider completeness,
+i.e., how comprehensive the response is, as the next
+criterion. Splits 5 and 6 assess the judge’s ability to
+select the more complete response when both op-
+tions are faithful, for QA and summarization tasks,
+respectively. Each pairwise sample is designed
+such that one response is more complete than the
+other while both responses are faithful.
+Judges should first confirm that both responses
+are faithful and then determine which one is more
+complete. We construct Split 5 using the LFRQA
+(Han et al., 2024) and QA-Feedback (Wu et al.,
+2023) datasets. For LFRQA, we use approach
+M2 from Sec. 3.1 to modify a faithful response
+by omitting lines associated with certain citations
+while expanding on other citations. This yields a
+less complete negative response that is still faith-
+ful and similar in length to the original (positive)
+response. See App. A.2 for generation prompt. For
+QA-Feedback, we use approach H to create pref-
+erence pairs from RAG responses annotated for
+completeness scores or missing information errors.
+Similarly, Split 6 is created using approach H with
+existing human annotations that assess faithfulness
+and completeness in summarization responses. To
+form preference pairs, we first filter unfaithful re-
+sponses. Then, we form pairs based on complete-
+ness, ensuring that one response is significantly
+more complete (positive) than the other (negative).
+[HIGHLIGHT yellow: "aithfulness, contex s response quality. esponses, the bette"]
+[HIGHLIGHT yellow: "nswer. As such, we consider com w comprehensive the response is, n. Splits 5 and 6 assess the judge’"]
+[HIGHLIGHT yellow: "rrelevance. Preference pairs are g faithful and complete responses For split 8, we again use approach"]
+[NOTE left: "So both use faithful information except one is missing something. Ahh keep the lengths the same. so its not so easy."]
+[HIGHLIGHT yellow: "vely. Each pairwise sample is d t one response is more complete t ile both responses are faithful."]
+[SUBSECTION: "3.6 Overall dataset statistics"]
+ContextualJudgeBench is constructed based on our
+evaluation workflow (Fig. 2), resulting in 8 splits
+across 4 evaluation criteria, covering two common
+use cases of contextual generation: RAG-QA (5
+splits) and Summarization (3 splits). We present the
+domain distribution in Fig. 3 and dataset statistics
+in Tab. 1. Overall, ContextualJudgeBench consists
+of 2,000 preference pairs, balanced across all splits,
+with over 1,500 unique contexts to minimize dupli-
+cation. We include a wide range of context lengths,
+from a few tokens to nearly 10K tokens, with sum-
+marization contexts typically longer than QA ones.
+Response lengths range from brief answers to sum-
+maries over 1,000 tokens. To account for length
+bias in judges (Zeng et al., 2023; Park et al., 2024),
+we ensure minimal length differences between pos-
+itive and negative responses across all splits; how-
+ever, conciseness correlates with response length,
+resulting in longer positive responses.
+[HIGHLIGHT yellow: "2023) datasets. For LFRQA, we use approach M2 from Sec. 3.1 to modify a faithful response by omitting lines associated with certain citations while expanding on other citations. This yields a less complete negative response that is still faith-"]
+[HIGHLIGHT yellow: "Tab. 1. Overall, Contex f 2,000 preference pairs, ith over 1,500 unique co"]
+[HIGHLIGHT yellow: "of 2,000 preference pairs, balanced across all splits, with over 1,500 unique contexts to minimize dupli- cation. We include a wide range of context lengths, from a few tokens to nearly 10K tokens, with sum-"]
+[SECTION: "4 Evaluation and analysis"]
+[SUBSECTION: "4.1 Evaluation setup and baselines"]
+[SUBSECTION: "3.5 Step 4: Conciseness [splits 7 & 8]"]
+[NOTE right: "Need to always test a first then b, theen b first then a"]
+[HIGHLIGHT yellow: "Because the order of responses influences judge decisions (Wang et al., 2023), we adopt a consis- tency evaluation setup, like Tan et al. (2024); Li"]
+Our final criterion is conciseness: does the response
+avoid including more than what was asked? Our hi-
+erarchy intentionally places conciseness after com-
+Because the order of responses influences judge
+decisions (Wang et al., 2023), we adopt a consis-
+tency evaluation setup, like Tan et al. (2024); Li
+[HIGHLIGHT yellow: "Our final criterion is conciseness: does the r avoid including more than what was asked? erarchy intentionally places conciseness af"]
+[HIGHLIGHT yellow: "what was asked? Our hi- s conciseness after com-"]
+9545
+
+--- Page 6 ---
+
+els, ranging in size from 3.8B to 70B parameters:
+Prometheus (Kim et al., 2024), OffsetBias (Park
+et al., 2024), SFRJudge (Wang et al., 2024b),
+Skywork-Critic (Shiwen et al., 2024), Self-taugh-
+evaluator (Wang et al., 2024c), GLIDER (Desh-
+pande et al., 2024), and Atla-Selene (Alexandru
+et al., 2025). See Tab. 2 for an overview of judges
+and App. B.1 for a more detailed description of
+each evaluated judge. For each judge, we retain the
+original prompt template while modifying evalu-
+ation instructions to align with our proposed hier-
+archy; See App. B.2 for prompt samples. We also
+evaluate the instruct versions of Llama-3.1-8B and
+70B and Llama-3.3-70B, along with GPT-4o, GPT-
+4o-mini, o3-mini, o1, Deepseek-R1, and DeepSeek-
+R1-Llama-Distill as prompted judge model base-
+lines. For all non-reasoning model-based judges,
+we generate with greedy sampling.
+As a reference point, we also run RAGAS (Es
+et al., 2023), a pointwise RAG evaluator that lever-
+ages both prompted frontier models and embedding
+models, as well as MiniCheck (Tang et al., 2024),
+a hallucination detector. We apply these two meth-
+ods to benchmark splits covered by their respec-
+tive metrics: refusal and faithfulness for both, and
+completeness for RAGAS. For RAGAS, we score
+each response pointwise and derive corresponding
+pairwise outcomes in line with our hierarchy (e.g.,
+for the completeness split, two responses must be
+considered equally faithful). For MiniCheck, we
+directly compare the classifier probabilities of each
+response to determine the pairwise winner.
+Split
+# Pairs
+# Context
+Lc
+Lr
+Lpos
+Lneg
+Refusal (Ans.)
+250
+250
+1,444
+102
+108
+95
+Refusal (Unans.)
+250
+250
+418
+64
+64
+63
+Faithfulness (QA)
+250
+213
+414
+100
+99
+101
+Faithfulness (Summ.)
+250
+192
+1,754
+94
+97
+91
+Completeness (QA)
+250
+250
+658
+106
+98
+113
+Completeness (Summ.)
+251
+171
+1,066
+91
+93
+89
+Conciseness (QA)
+255
+254
+1,086
+199
+116
+281
+Conciseness (Summ.)
+244
+117
+1,557
+98
+77
+118
+Table 1: ContextualJudgeBench statistics. # Context
+denotes unique contexts across all pairs. Lc and Lr
+represent the mean context and response lengths, while
+Lpos and Lneg denote the mean positive and negative
+response lengths per split.
+Model
+# Params
+Expl.
+Context len.
+GLIDER (Deshpande et al., 2024)
+3.8B
+✓
+128K
+Prometheus-2 (Kim et al., 2024)
+7,8x7B
+✓
+16K
+OffsetBias (Park et al., 2024)
+8B
+✗
+8K
+Atla-Selene (Alexandru et al., 2025)
+8B
+✓
+128K
+Skywork-Critic (Shiwen et al., 2024)
+8,70B
+✗
+128K
+SFRJudge (Wang et al., 2024b)
+8,12,70B
+✓
+128K
+STEval. (Wang et al., 2024c)
+70B
+✓
+128K
+Llama-3.1 (Dubey et al., 2024)
+8,70B
+✓
+128K
+Llama-3.3 (Dubey et al., 2024)
+70B
+✓
+128K
+GPT-4o,4o-mini (Hurst et al., 2024)
+?
+✓
+128K
+GPT-o1,o3-mini (Jaech et al., 2024)
+?
+✓
+128K
+DeepSeek-R1 (Guo et al., 2025)
+685B
+✓
+128K
+DeepSeek-R1-distill (Guo et al., 2025)
+70B
+✓
+128K
+Table 2: Judge (top) and general (bottom) models evalu-
+ated. Expl. denotes if model outputs explanations.
+[HIGHLIGHT yellow: "models, as well as MiniC a hallucination detector. ods to benchmark splits"]
+[HIGHLIGHT yellow: "et al. (2023a). We run evaluation for each test sam- ple twice, swapping the order of responses for the second run. We denote these as Run 1 and Run 2, respectively. Given the judge outputs of Run 1 and"]
+et al. (2023a). We run evaluation for each test sam-
+ple twice, swapping the order of responses for the
+second run. We denote these as Run 1 and Run 2,
+respectively. Given the judge outputs of Run 1 and
+Run 2, we compute the following metrics.
+• Consistent accuracy: A judge is considered cor-
+rect if it selects the correct response for both runs.
+In this setup, random selection results in a con-
+sistent accuracy of 25%. Our main evaluation
+results report consistent accuracy.
+• Run 1 and 2 accuracy: A judge is considered
+correct if it selects the correct response in the
+respective run. These metrics do not account
+for consistency, and may reflect more practical
+settings where inference can only be run once.
+• Optimistic accuracy: A judge is considered cor-
+rect if either the Run 1 or Run 2 output is cor-
+rect, regardless of consistency, serving as an op-
+timistic upper bound for judge performance.
+• Consistency: Consistency is the fraction of times
+a judge selects the same response in both runs,
+regardless of correctness.
+[SUBSECTION: "4.2 Judge model evaluation"]
+The results presented in Tab. 3 highlight the
+challenges of contextual evaluation.
+The best-
+performing models are o1 (55.3), o3-mini (52.6)
+and DeepSeek-R1 (51.9), two large reasoning mod-
+els. The best-performing judge, SFRJudge-70B
+(51.4), nearly matches DeepSeek-R1. Judge model
+performance generally increases with model size,
+with the best-performing judges exceeding their
+similarly-sized API counterparts (e.g., SFRJudge-
+8B at 39.3 vs. GPT-4o-mini at 38.8). The scal-
+ing trend, along with the strong performance of
+reasoning models, suggests that contextual evalu-
+ation is a reasoning-intensive task. This nature is
+further underscored by comparing DeepSeek-R1-
+Llama-70B and its base model, Llama-3.3-70B-
+Instruct: After undergoing reasoning-specific train-
+ing, DeepSeek-R1-Llama-70B improves upon its
+base model by 4.4 points. However, we show that
+[HIGHLIGHT yellow: "challenges of contextual evaluation. The best- performing models are o1 (55.3), o3-mini (52.6) and DeepSeek-R1 (51.9), two large reasoning mod- els. The best-performing judge, SFRJudge-70B (51.4), nearly matches DeepSeek-R1. Judge model"]
+[HIGHLIGHT yellow: "e reasoning mod- SFRJudge-70B R1. Judge model"]
+To support a systemic investigation into positional
+bias (App. D.2), Run 1 sets Response A as the
+positive response while Run 2 sets Response B as
+the positive response for all samples.
+We evaluate 11 competitive LLM-as-judge mod-
+[HIGHLIGHT yellow: "Llama-70B and its base model, Llama-3.3-70B- Instruct: After undergoing reasoning-specific train- ing, DeepSeek-R1-Llama-70B improves upon its base model by 4.4 points. However, we show that"]
+9546
+
+--- Page 7 ---
+
+[TABLE]
+[HIGHLIGHT yellow: "78.8 5 83.2 7"]
+Table 3: Consistent accuracy for judge models, open-source instruct models, and API models on ContextualJudgeBench.
+SFRJudge-8B
+Atla-Selene-8B
+SFRJudge-70B
+STEval-70B
+Llama-3.1-8B
+Llama-3.1-70B
+Correct for right reason
+Best fit, coeff.: 0.86
+Best fit, coeff.: 0.99
+Refusal
+Faithfulness
+Completeness
+Conciseness
+Consistent Accuracy, verified
+Optimistic Accuracy, verified
+0.8
+0.8
+0.6
+0.6
+0.6
+0.4
+0.4
+0.4
+0.2
+0.2
+0.2
+0.0
+0.0
+0.0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+Consistent Accuracy
+0.0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+Optimistic Accuracy
+[FIGURE 4: "(Left) Accuracy vs. verified accuracy and (Right) optimistic accuracy vs. verified optimistic accuracy for six models, aggregated by criteria. The larger the drop from the dashed black line, the larger fraction of correct outcomes used incorrect criteria, as assessed by GPT-4o."]
+common inference-time scaling techniques typi-
+cally used in reasoning settings do not boost per-
+formance in Sec. 4.4 and App. C.3.
+Evaluation trends show increasing difficulty with
+factuality, completeness, and conciseness, due to
+subtle distinctions in deeper levels of evaluation
+workflow and the bias for longer responses.
+Generative judge models tend to lag specialized
+evaluators. MiniCheck naturally excels for faithful-
+ness, while RAGAS offers more balanced, yet still
+competitive performance across refusal and faith-
+fulness splits. However, most judges outperform
+the embedding-based RAGAS completeness score,
+showing an advantage of generative evaluation.
+[HIGHLIGHT yellow: "Generative judge models tend to lag specialized evaluators. MiniCheck naturally excels for faithful- ness, while RAGAS offers more balanced, yet still competitive performance across refusal and faith-"]
+[SUBSECTION: "4.3 How do judges handle criteria?"]
+Our analysis thus far has been outcome driven:
+We have not verified that judges make correct
+judgments based on the specified criteria. Here,
+we conduct model-assisted verification on a sub-
+set of judge models that generate explanations:
+SFRJudge-8B,70B, Atla-Selene-8B, STEval-70B,
+and two Llama models. For all judgments with
+the correct outcome, we prompt GPT-4o to deter-
+mine from the judge explanation if the judgment
+was decided by the correct criteria (Full prompt
+in App. B.3). From this, we compute a verified
+consistent accuracy. In Fig. 4, we plot the verified
+accuracies of each judge against its original accu-
+racies, with the black dashed-line indicating the
+upper bound, where all correct responses use the
+right criteria. On average, verified accuracies tend
+[HIGHLIGHT yellow: "We have not verified that judges make c judgments based on the specified criteria. we conduct model-assisted verification on"]
+[HIGHLIGHT yellow: "conciseness ty in concisen"]
+[TABLE]
+[NOTE left: "Unanswerable refusals are very important"]
+[HIGHLIGHT yellow: "Models tend to strug unanswerable refusals. evaluation may be exacer"]
+[HIGHLIGHT yellow: "lty in concise y length bias ( concise respo"]
+[HIGHLIGHT yellow: "and two Llama models. For all judgments with the correct outcome, we prompt GPT-4o to deter- mine from the judge explanation if the judgment was decided by the correct criteria (Full prompt in App. B.3). From this, we compute a verified"]
+[HIGHLIGHT yellow: "selecting shorter concise resp e judge bias for longer ones. g to select accurate refusals"]
+[HIGHLIGHT yellow: "conflicts with the judge bias for longer ones. Like- wise, struggling to select accurate refusals may be a special case of concreteness bias (Park et al., 2024), as judges are biased towards substantive re-"]
+[HIGHLIGHT yellow: "be a special case of concreteness bias (Park et al., 2024), as judges are biased towards substantive re- sponses. Further analysis in App. C.4 reveals that poor accurate refusal performance may be an unin-"]
+[HIGHLIGHT yellow: "sponses. Further analysis in App. C poor accurate refusal performance m tended result of judge finetuning, a"]
+9547
+
+--- Page 8 ---
+
+[TABLE]
+[TABLE]
+[TABLE]
+[HIGHLIGHT yellow: "R1 Figure 5: Judge performance changes are minor when given exact criteria vs. full workflow, indicating challenges in contextual evaluation beyond criteria. Per-split metrics (Left) averaged across all models, per-judge metrics (Right) averaged across all splits for a selected subset of judges."]
+[TABLE]
+[TABLE]
+[TABLE]
+[TABLE]
+[FIGURE 6: "Across both small (Left) and larger (Right) judges, using inference time scaling has little effect. (Top) Ensembling judges into juries rarely outperforms the strongest judge in the jury due to weak judge agreement. (Bottom) Self-consistency rarely improves judge performance."]
+[HIGHLIGHT yellow: "Figure 6: Across both small (Left) and larger (Right) judges, using infe Ensembling judges into juries rarely outperforms the strongest judge (Bottom) Self-consistency rarely improves judge performance."]
+[NOTE left: "Basically 20% time they then give poor justifications. I dont really buy this."]
+to be 20 absolute percent lower than outcome-based
+accuracy, revealing that judges are using incorrect
+reasoning to reach correct outcomes. Refusals and
+faithfulness are generally determined for the cor-
+rect reasons, whereas completeness and concise-
+ness are not, indicating that evaluation becomes
+more difficult deeper into the hierarchy. A similar
+trend holds for the optimistic variant of verified
+consistent accuracy, where we consider a sample to
+be correct if any of the two runs gets the correct out-
+come with correct reasoning. Verified optimistic
+accuracy tends to track better with unverified accu-
+racy than verified consistent accuracy, with line of
+best fit coefficients of 0.99 vs. 0.86.
+poses challenges beyond applying the correct crite-
+ria. Full results are presented in App. C.5.
+[HIGHLIGHT yellow: "to be 20 absolute percent lower than outcome-based accuracy, revealing that judges are using incorrect reasoning to reach correct outcomes. Refusals and faithfulness are generally determined for the cor-"]
+[SUBSECTION: "4.4 Can scaling inference-time compute help?"]
+[HIGHLIGHT yellow: "Inspired by recent efforts in inference-time scal- ing (Jaech et al., 2024; Snell et al., 2024), we in- vestigate the impacts of LLM-as-jury (Verga et al.,"]
+[HIGHLIGHT yellow: "ally determined completeness ng that evaluati"]
+[HIGHLIGHT yellow: "faithfulness are generally determined for the cor- rect reasons, whereas completeness and concise- ness are not, indicating that evaluation becomes more difficult deeper into the hierarchy. A similar"]
+Inspired by recent efforts in inference-time scal-
+ing (Jaech et al., 2024; Snell et al., 2024), we in-
+vestigate the impacts of LLM-as-jury (Verga et al.,
+2024) and self-consistency (Wang et al., 2022). We
+experiment with three smaller (8B) and three larger
+(70B) judges, and for both settings, aggregate judg-
+ments via majority vote3. In Fig. 6, we present our
+results for both LLM-as-jury (top) using responses
+from different three judges and self-consistency
+(bottom) using 10 responses per judge (using a tem-
+perature of 0.7). The results are similar between
+smaller and larger models: LLM-as-jury rarely out-
+performs the strongest judge in the jury, while using
+self-consistency similarly has little impact.
+These trends may be surprising given the strong
+performance of reasoning models like o1 and
+DeepSeek-R1. The lack of jury success stems from
+the fact that judges do not exhibit structured agree-
+ment. We use all judge outputs to compute Krip-
+pendorff’s alpha coefficient (Krippendorff, 2011),
+which measures inter-annotator agreement on a
+range from -1 (complete disagreement) to 1 (com-
+plete agreement), with 0 indicating random chance.
+[HIGHLIGHT yellow: "4; Snell et al., 2 f LLM-as-jury ( ncy (Wang et al"]
+[HIGHLIGHT yellow: "the impacts of LLM d self-consistency ( nt with three smalle"]
+[HIGHLIGHT yellow: "ges, and for bot a majority vote3 r both LLM-as-"]
+While judges struggle to use the correct criteria
+when evaluating based on the contextual hierar-
+chy, they are slightly more capable when given
+the correct criteria to use, as shown in Fig. 5. For
+each split, we prompt the judge with only the split
+criteria, omitting any mention of the evaluation hi-
+erarchy. We compare judge performance against
+prompting with the full hierarchy. Conciseness and
+unanswerable refusals receive the greatest benefit,
+showing that length bias and concreteness bias can
+be mitigated to a degree with specific prompting.
+However, gains are relatively muted across judges
+due to little change in consistency between the two
+settings. Inconsistency, even after abstracting away
+the hierarchy, suggests that contextual evaluation
+[HIGHLIGHT yellow: "y, they are sligh e correct criteria t ch split, we prom"]
+[HIGHLIGHT yellow: "formance again Conciseness a e greatest bene"]
+[HIGHLIGHT yellow: "prompting with the full unanswerable refusals r showing that length bia"]
+3We treat inconsistent judgments as ties. For a sample, if
+the aggregated judgments do not have a clear winner, e.g., (A,
+Tie, B) or (Tie, Tie, Tie), then we consider it incorrect.
+9548
+
+--- Page 9 ---
+
+[TABLE]
+[FIGURE 7: "Four accuracy measures showing performance variations due to inconsistency, averaged across all splits for judge models (Left) and general purpose/reasoning models (Right)."]
+[NOTE right: "Generation length and input length make make it harder. Context length is a harder problem to solve. Long generations"]
+[TABLE]
+[TABLE]
+[TABLE]
+[FIGURE 8: "Effects of length of both context and responses on judge accuracy (left) and consistency (right) averaged over a subset of high performant judge models"]
+As shown in Fig. 6, judge agreement is extremely
+random: Even on the best-performing split, the
+alpha coefficient barely exceeds 0.2.
+Lack of improvement from self-consistency
+likely results from the fact that contextual assess-
+ment is largely unseen in judge training. As a re-
+sult, better judgments cannot be extracted via ran-
+dom sampling. Performance may be further ham-
+pered by positional bias, where the judge outcome
+changes based on the order of responses in the
+prompt. Fig. 7 plots the Run 1 and Run 2 accuracy
+along with consistent accuracy and optimistic accu-
+racy, as defined in Sec. 4.1. Because we consider
+inconsistent judgments as ties when aggregating
+judgments, the full gains of self-consistency may
+not be realized if one of the runs does not yield
+meaningfully more correct responses than incor-
+rect responses. As we show in App. D.2, the Run 2
+judgment distribution is more skewed towards cor-
+rect responses than Run 1, resulting in inconsistent
+judgment pairs that dampen any gains in Run 2.
+STEval-70B, SFRJudge-70B, GPT-4o, DeepSeek-
+R1, and o1. In general, response and context length
+have a compounding effect: As responses and con-
+text both increase in length, judge accuracy and
+consistency tend to decrease, with longer responses
+impacting performance more than longer input con-
+text in general. The opposite trend also generally
+holds, with stronger judge performances coming
+with shorter contexts and/or responses. In App. D,
+we present a comprehensive bias analysis, disen-
+tangling the effects of both context length and re-
+sponse length and analyzing judge positional bias.
+[HIGHLIGHT yellow: "and o1. In general, respo e a compounding effect: both increase in length"]
+[HIGHLIGHT yellow: "mpling. Performa y positional bias, w based on the or"]
+[SECTION: "5 Conclusion"]
+We introduce ContextualJudgeBench, a benchmark
+designed to evaluate LLM-judges in contextual set-
+tings. Building on a principled contextual eval-
+uation hierarchy, we construct eight benchmark
+splits that assess refusals, faithfulness, complete-
+ness, and conciseness. This benchmark presents
+a significant challenge for state-of-the-art judge
+and reasoning models, with SFRJudge-70B and
+o1 achieving consistent accuracies of 51.4% and
+55.3%, respectively. Additionally, we conduct a
+thorough analysis of reasoning correctness and ex-
+amine the impact of common methods for scaling
+test-time compute, results of which further validate
+the unique challenges of contextual evaluation.
+[HIGHLIGHT yellow: "h, a benchmark n contextual set- ontextual eval-"]
+[HIGHLIGHT yellow: "design tings. uation"]
+[HIGHLIGHT yellow: "y, we construct eight benchmark s refusals, faithfulness, complete- seness. This benchmark presents"]
+[HIGHLIGHT yellow: "splits that assess refus ness, and conciseness a significant challeng"]
+[HIGHLIGHT yellow: "is benchmark presents state-of-the-art judge th SFRJudge-70B and"]
+[HIGHLIGHT yellow: "gnificant challenge reasoning models, achieving consistent"]
+[SUBSECTION: "4.5 How do context and response length compound evaluation difficulty?"]
+[HIGHLIGHT yellow: "ge-70B a 51.4% a e conduc"]
+[HIGHLIGHT yellow: "o1 achieving consist 55.3%, respectively. thorough analysis of"]
+[HIGHLIGHT yellow: "55.3%, respectivel thorough analysis o amine the impact o"]
+In Fig. 8, we visualize at the combined effect of
+context and response length on consistent accu-
+racy (left) and consistency (right), averaging per-
+formance over six strong judges; Llama-3.1-70B,
+9549
+
+--- Page 10 ---
+
+[SECTION: "Limitations"]
+Cohere Team. 2024. Command r: Retrieval-augmented
+generation at production scale.
+Our evaluations center around generative evalua-
+tors, as they are the most flexible in terms of incor-
+porating context and indicating different evaluation
+criteria. However, reward models (RMs) are a com-
+mon class of evaluators that may be applicable to
+this setting. However, to our knowledge, no con-
+textual reward models exist. While in practice, one
+can embed the context in the input, it is unclear
+how to derive criteria-specific rewards from current
+models. A fruitful direction of future work is de-
+veloping and benchmarking classifier based RMs
+for contextual settings.
+As we repurposed existing annotated datasets –
+particularly for faithfulness and completeness – we
+are constrained by their coverage. This limitation
+may prevent us from making observations that gen-
+eralize beyond their original distribution. Further-
+more, ContextualJudgeBench is constructed pri-
+marily from English sources, a language abundant
+with context, model responses, and correspond-
+ing annotations. Further research should aim to
+rigorously assess contextual assessment in low-
+resource languages, where contextual content and
+corresponding annotations may be more scarce.
+Pierre Colombo, Telmo Pires, Malik Boudiaf, Rui Filipe
+Coimbra Pereira de Melo, Gabriel Hautreux, Etienne
+Malaboeuf, Johanne Charpentier, Dominic Culver,
+and Michael Desa. 2024. Saullm-54b & saullm-141b:
+Scaling up domain adaptation for the legal domain.
+In The Thirty-eighth Annual Conference on Neural
+Information Processing Systems.
+Contextual AI Team. 2024. Introducing rag 2.0.
+Darshan Deshpande, Selvan Sunitha Ravi, Sky CH-
+Wang, Bartosz Mielczarek, Anand Kannappan, and
+Rebecca Qian. 2024. Glider: Grading llm interac-
+tions and decisions using explainable ranking. arXiv
+preprint arXiv:2412.14140.
+Karel D’Oosterlinck, Winnie Xu, Chris Develder,
+Thomas Demeester, Amanpreet Singh, Christopher
+Potts, Douwe Kiela, and Shikib Mehri. 2024. An-
+chored preference optimization and contrastive revi-
+sions: Addressing underspecification in alignment.
+arXiv preprint arXiv:2408.06266.
+Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey,
+Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman,
+Akhil Mathur, Alan Schelten, Amy Yang, Angela
+Fan, et al. 2024. The llama 3 herd of models. arXiv
+preprint arXiv:2407.21783.
+Shahul Es, Jithin James, Luis Espinosa-Anke, and
+Steven Schockaert. 2023. Ragas: Automated eval-
+uation of retrieval augmented generation.
+arXiv
+preprint arXiv:2309.15217.
+
+--- Appendix ---
+
+A.2
+Dataset construction details
+### Data Prompt 2 (M1) : Generate hallucinated response
+We provide detailed information on all eight splits
+of ContextualJudgeBench, covering the datasets uti-
+lized, the applied methodologies, and the prompts
+used for data generation. For a concise summary,
+refer to Table 4, and for split-specific examples, see
+Table 8.
+We sampled data using a model-based response
+perturbation approach, as introduced in Sec. 3,
+which includes two methods:
+desired output
+prompting (M1) and existing output modification
+(M2).
+Given the following question and context, provide a
+well-thought, and specific answer:
+Question:
+{question}
+Contexts:
+{context}
+Please provide:
+1. A step-by-step reasoning process explaining how you
+arrive at your answer
+2. A final, direct answer based on this reasoning
+You must provide a specific answer. You cannot respond
+with "I don't know" or "not enough information".
+Format the response as a JSON object with two keys:
+- 'thoughts': Your step-by-step reasoning process
+- 'answer': Your final answer.
+Prompt 1 (M1): Generate context-based refusal
+Prompt 2 (M1): Generate hallucinated response
+Prompt 3 (M1): Generate unfaithful response
+Prompt 4 (M2): Generate less-complete response
+Prompt 5 (M2): Generate less-concise response
+### Data Prompt 3 (M1) : Generate unfaithful response
+Given the following question and its faithful answer,
+generate an unfaithful answer (unfaithful with respect
+to the given context) that:
+1. Can be a correct answer to the question.
+2. May include plausible-sounding but irrelevant
+information with respect to the given contexts.
+Question:
+{question}
+### Data Prompt 1 (M1) : Generate context-based
+refusal response
+Given the following question and context, generate a
+context-specific refusal response that:
+1. Explains why you cannot answer based on the given
+9555
+
+--- Page 16 ---
+
+[NOTE left: "REFUSALS
+This is a little confusing but I think I am getting it. Refusal Answer - QA use correct answer from QA and then generate a false rejection saying I dont have enough to answer WHEN YOU DO.
+Next is the reverse case. We go to FaithEval which has unanswerable context but the answer lacks justifications. so we need to prompt that. neg response here we just need answer it even though we are not meant to."]
+Split
+Dataset
+Positive Response (approach)
+Negative Response (approach)
+Refusal
+(Ans.)
+LFRQA(Han et al., 2024)
+Provided response
+Context-based refusal using data prompt-1 (M1)
+Refusal
+(Unans.)
+FaithEval(Ming et al., 2024)
+Context-based refusal using data prompt-1 (M1)
+Generate substantive response with data prompt-2
+(M1)
+Faithfulness
+LFRQA(Han et al., 2024)
+Provided response
+Generate unfaithful response using data
+(QA)
+LFQA(Xu et al., 2023)
+prompt-3 (M1)
+MRQA(Fisch et al., 2019)
+QA-Feedback(Wu et al., 2023)
+Faithful responses (H)
+Unfaithful responses (H)
+RAGTruth(Niu et al., 2024)
+Faithfulness
+FineSumFact(Oh et al., 2025)
+Fully faithful responses or response with higher
+Unfaithful response with lower faithfulness
+(Summ.)
+InstruSum(Liu et al., 2024b)
+faithfulness (0.75 or more) (H)
+score (H)
+LongformFact(Wan et al., 2024)
+UniSumEval(Lee et al., 2024)
+FineSurE(Song et al., 2024)
+RAGTruth (Niu et al., 2024)
+Completeness
+(QA)
+LFRQA(Han et al., 2024)
+Provided response
+Omitted few relevant information and expanded
+on remaining ones using data prompt-4 (M2)
+QA-Feedback(Wu et al., 2023)
+Response w/o ’missing-info’ error (H)
+Response with ’missing-info’ error (H)
+Completeness InstruSum(Liu et al., 2024b)
+Response with faithfulness=1 and higher
+Response with faithfulness=1 and lower
+(Summ.)
+UniSumEval(Lee et al., 2024)
+completeness score (H)
+completeness score (H)
+FineSurE(Song et al., 2024)
+Conciseness
+(QA)
+LFRQA(Han et al., 2024)
+Provided response
+Direct quotations inserted from the context in the
+original response using data prompt-5 (M2)
+QA-Feedback(Wu et al., 2023)
+Response w/o ’irrelevant’ or ’redundant’ error (H)
+Response with ’irrelevant’ or ’redundant’ error (H)
+Conciseness
+InstruSum(Liu et al., 2024b)
+Response with faithfulness=1, completeness=1
+Response with faithfulness=1, completeness=1
+(Summ.)
+UniSumEval(Lee et al., 2024)
+and higher conciseness score (H)
+and lower conciseness score (H)
+Table 4: Detailed information on all eight splits of ContextualJudgeBench, including the datasets utilized, approaches
+applied for pair construction, and the prompts used for data generation. Here (H) refers to using existing human
+annotations, while (M2), (M2) refers to desired output prompting and existing output modification respectively.
+{context}
+Contexts:
+{context}
+Response with citations:
+{answer}
+Faithful Answer:
+{answer}
+Please provide:
+1. An unfaithful answer
+2. A brief justification explaining why the answer is
+unfaithful (irrlevant) to the context.
+Format the response as a JSON object with keys
+'unfaithful_answer' and 'justification'.
+### Data Prompt 5 (M2) : Generate less-concise response
+### Data Prompt 4 (M2) : Generate less-complete
+response
+Task: Modify the given response by removing key
+details from one or more cited passages while
+maintaining a similar length by expanding on less
+relevant details.
+Task: Given the following question, context, and
+answer with citations, your task is to generate a less
+consise and more detailed response by expanding some
+of the citations through direct quotations from the
+cited passages. The response should include all
+relevant details form the original answer but should
+be rephrased to avoid copying directly. By
+incorporating specific lines from the cited articles,
+the response will become more authoritative. Not all
+citations need to expanded-choose which ones to
+elaborate on for the greatest impact. Ensure that the
+final response does not exceed the original length by
+more than 50 words and maintains a unique structure
+while conveying the same information. Do not include
+citations in the generated response.
+Instructions:
+1. Omit one or more cited passages to make the
+response less complete, removing essential details.
+2. Compensate for the missing information by
+elaborating on other cited passages with unnecessary
+or redundant details.
+3. Ensure the modified response remains factually
+accurate and aligns with the provided context.
+4. Maintain a similar length to the original response,
+ensuring the new version differs by more than 10-15
+words.
+5. Avoid copying the structure of the given response;
+create a unique structure instead. \n6. Do not include
+citations (e.g., [*]) in the modified response.
+Question:
+{question}
+Context:
+{context}
+Question:
+{question}
+Response with citations:
+{answer}
+Context:
+9556
+
+--- Page 17 ---
+

@@ -38,6 +38,8 @@ Shortcut wrapper (extract + prompt generation):
 | `docs/prompts/` | Archived prompt-engineering notes |
 | `src/` | Extraction and summarisation source code |
 
+`papers/` is intentionally versioned for reproducible examples. `papers/ContextualJudge.pdf` is the canonical annotated sample in this repository.
+
 ## Interface
 
 Main CLI:
@@ -54,7 +56,13 @@ uv run python src/pipeline.py --paper papers/<name>.pdf --url <paper-url-or-id>
 
 ### Common usage
 
-Full pipeline:
+Full pipeline (canonical example):
+
+```bash
+uv run pipeline --paper papers/ContextualJudge.pdf --url https://aclanthology.org/2025.acl-long.470/
+```
+
+Alternative example (arXiv paper):
 
 ```bash
 uv run pipeline --paper papers/LRAS.pdf --url 2601.07296
@@ -88,12 +96,66 @@ uv run pipeline --paper papers/LRAS.pdf --no-bibtex
 | `--model` | Optional model label in generated prompt |
 | `--output-dir` | Output root directory (default: `outputs`) |
 
+## Example: ContextualJudge walkthrough
+
+The canonical example in this repository is **ContextualJudge**, a benchmark paper from ACL 2025. Running the full pipeline produces three outputs:
+
+```bash
+uv run pipeline --paper papers/ContextualJudge.pdf --url https://aclanthology.org/2025.acl-long.470/
+```
+
+This generates:
+
+1. **Extracted text** (`outputs/extracted/ContextualJudge.txt`) — annotated source text with margin notes and highlights preserved inline:
+   ```
+   [TITLE: "Does Context Matter? ContextualJudgeBench for Evaluating LLM-based Judges in Contextual Settings"]
+   [AUTHORS: "Austin Xu⋆, Srijan Bansal⋆, Yifei Ming, Semih Yavuz, Shafiq Joty Salesforce AI Research"]
+   ...
+   The large language model (LLM)-as-judge paradigm has been used to meet the demand for a cheap, reliable, and fast evaluation of model outputs...
+   [HIGHLIGHT yellow: "approach"]
+   [NOTE right: "Evaluated from externally provided context."]
+   ...
+   ```
+
+2. **BibTeX entry** (`outputs/bibtex/ContextualJudge.bib`) — fetched from ACL Anthology:
+   ```bibtex
+   @inproceedings{xu-etal-2025-context,
+       title = "Does Context Matter? {C}ontextual{J}udge{B}ench for Evaluating {LLM}-based Judges in Contextual Settings",
+       author = "Xu, Austin and Bansal, Srijan and Ming, Yifei and Yavuz, Semih and Joty, Shafiq",
+       booktitle = "Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics",
+       year = "2025",
+       url = "https://aclanthology.org/2025.acl-long.470/",
+       pages = "9541--9564"
+   }
+   ```
+
+3. **Model-ready prompt** (`outputs/prompts/ContextualJudge.prompt.md`) — template + annotated text, ready for a local or manual model invocation:
+   ```markdown
+   You are helping a researcher create a precise personal reading note for their research archive...
+   
+   [Full annotated text inserted here]
+   ```
+
+4. **Final summary** (`summaries/ContextualJudge_summary.md`) — example output from processing the prompt, structured as:
+   - What was the paper about?
+   - What problem did they solve?
+   - How did they solve it?
+   - Models and data
+   - Experimental results
+   - What did they conclude?
+   - Limitations
+   - My take
+   - Summary (exactly 5 sentences)
+   - BibTeX
+
+(The summary is generated externally — the pipeline produces steps 1–3 only; step 4 is manual or via a hosted LLM.)
+
 ## Outputs
 
 ```text
-outputs/extracted/LRAS.txt      # extracted annotated text
-outputs/bibtex/LRAS.bib         # fetched BibTeX (if available)
-outputs/prompts/LRAS.prompt.md  # model-ready prompt
+outputs/extracted/ContextualJudge.txt      # extracted annotated text
+outputs/bibtex/ContextualJudge.bib         # fetched BibTeX (if available)
+outputs/prompts/ContextualJudge.prompt.md  # model-ready prompt
 ```
 
 Pipeline flow:
