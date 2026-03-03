@@ -1,0 +1,22 @@
+# uv / Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+uv.lock
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Project runtime
+papers/
+extracted/
+summaries/
+
+# Secrets
+.env
