@@ -56,7 +56,9 @@ Implement the following, in order:
 
 ### 3. `prompts/summary_prompt.md` — the summary prompt template
 
-Create this file with the exact prompt template specified in CLAUDE.md (the one beginning "You are helping a researcher create a personal reading note..."). This file is the versioned prompt; `summarise.py` reads it at runtime so it can be iterated without touching code.
+This file already exists in the repo. Do not recreate or modify it. `summarise.py` reads it at runtime and replaces the `<insert annotated text here>` placeholder with the contents of the extracted `.txt` file.
+
+The prompt produces eight labelled sections in order: **What was the paper about**, **What problem did they solve**, **What is novel**, **Models and data**, **What did they conclude**, **My take**, **Summary** (a single ~5-sentence paragraph), and **BibTeX** (fetched from the official venue proceedings, not fabricated).
 
 ### 4. `run.sh` — convenience wrapper
 
