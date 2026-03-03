@@ -123,7 +123,10 @@ def try_arxiv(url: str) -> str | None:
 def try_aclanthology(url: str) -> str | None:
     if "aclanthology.org" not in url:
         return None
-    bib_url = url.rstrip("/") + ".bib"
+    base = url.rstrip("/")
+    if base.endswith(".pdf"):
+        base = base[:-4]
+    bib_url = base + ".bib"
     try:
         r = fetch(bib_url)
         if r.status_code == 200 and r.text.strip().startswith("@"):

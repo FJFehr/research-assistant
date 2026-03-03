@@ -7,6 +7,8 @@ Annotations appear as:
 
 Write the note in the researcher’s voice, using British English, formal and factual. Use commas or parentheses; do not use em dashes. Avoid vague language.
 
+The output must be suitable for direct inclusion in a LaTeX literature review. Avoid special characters that require escaping unless they appear verbatim in quoted material. Do not introduce formatting symbols outside standard text, bullet lists, or a fenced BibTeX block.
+
 You must extract the exact problem, the exact mechanism of solution, the exact models used, the exact datasets used (and where), and the exact numerical results.
 
 ---
@@ -111,9 +113,13 @@ If proprietary components are used (e.g., `Qwen3-235B`, `Claude-4.5-Sonnet`), ad
 
 2–3 sentences. State the task and setting precisely.
 
+---
+
 ### 2. **What problem did they solve?**
 
 2–3 sentences. Clearly describe the failure mode or limitation of prior work.
+
+---
 
 ### 3. **How did they solve it?**
 
@@ -121,6 +127,8 @@ If proprietary components are used (e.g., `Qwen3-235B`, `Claude-4.5-Sonnet`), ad
 Describe the mechanism step-by-step.
 Use exact method names.
 State where in the pipeline the method operates.
+
+---
 
 ### 4. **Models and data**
 
@@ -178,16 +186,25 @@ Do not speculate beyond the text.
 
 * Use at least one `[NOTE ...]` sentence verbatim.
 * Critically assess novelty, reproducibility, and research impact.
+* Write in a way that can be directly adapted into a literature review discussion paragraph.
 
 ---
 
-## 9. **Summary** (exactly 5 sentences)
+## 9. **Summary (LaTeX-ready literature review paragraph)**
 
 Write **exactly five sentences**. No more, no fewer.
 
+This section must:
+
+* Be a single coherent paragraph.
+* Be directly pasteable into a LaTeX literature review.
+* Avoid markdown, bullet points, bold text, or special formatting.
+* Avoid characters that require LaTeX escaping unless they appear verbatim in quoted material.
+* Maintain formal academic tone.
+
 Each sentence has a fixed role:
 
-**Sentence 1 — What & setting**
+**Sentence 1 — What and setting**
 State precisely what the paper does and the task setting. Use exact terminology from the paper.
 
 **Sentence 2 — Problem**
@@ -195,10 +212,9 @@ State the exact problem or limitation in prior work that the paper addresses. Av
 
 **Sentence 3 — Solution mechanism**
 Explain exactly how they solved it.
-
-* Name the method verbatim.
-* State where it operates (training, inference, search, reward modelling, etc.).
-* Briefly describe the mechanism, not just that it improves performance.
+Name the method verbatim.
+State where it operates (training, inference, search, reward modelling, etc.).
+Briefly describe the mechanism.
 
 **Sentence 4 — Models, data, and results**
 State:
@@ -254,6 +270,8 @@ If unavailable:
 * No speculation.
 * No em dashes.
 
-## ANNOTATED PAPER TEXT: 
+---
+
+## ANNOTATED PAPER TEXT:
 
 <insert annotated text here>
