@@ -1,16 +1,19 @@
 """Extract highlights and margin notes from an annotated PDF.
 
 Usage:
-    python src/extract.py "annotated papers/foo.pdf"
+    python src/extract.py "papers/foo.pdf" [--url <paper_url>]
 
-Writes: extracted/foo.txt
+Writes: outputs/extracted/foo.txt
+If --url is provided, fetches BibTeX and prepends to output.
 """
 
+import argparse
 import re
 import sys
 from pathlib import Path
 
 import fitz  # pymupdf
+from src.get_bibtex import get_bibtex_from_url
 
 
 # ---------------------------------------------------------------------------
@@ -495,22 +498,49 @@ def extract(pdf_path: Path, out_path: Path) -> tuple[int, int, int]:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print(
-            'Usage: python src/extract.py "annotated papers/foo.pdf"', file=sys.stderr
-        )
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Extract highlights and margin notes from an annotated PDF."
+    )
+    parser.add_argument(
+        "pdf_path",
+        help='Path to the annotated PDF (e.g., "papers/foo.pdf")',
+    )
+    parser.add_argument(
+        "--url",
+        type=str,
+        default=None,
+        help="Paper URL or arXiv ID to fetch BibTeX entry for prepending to output",
+    )
 
-    pdf_path = Path(sys.argv[1])
+    args = parser.parse_args()
+
+    pdf_path = Path(args.pdf_path)
     if not pdf_path.exists():
         print(f"Error: file not found: {pdf_path}", file=sys.stderr)
         sys.exit(1)
 
-    out_path = Path("extracted") / (pdf_path.stem + ".txt")
+    out_path = Path("outputs/extracted") / (pdf_path.stem + ".txt")
     n_pages, n_highlights, n_notes = extract(pdf_path, out_path)
 
     n_chars = len(out_path.read_text(encoding="utf-8"))
     n_tokens_approx = n_chars // 4
+
+    # Fetch and prepend BibTeX if URL provided
+    if args.url:
+        print(f"Fetching BibTeX from: {args.url}", file=sys.stderr)
+        bibtex = get_bibtex_from_url(args.url)
+        if bibtex:
+            existing_text = out_path.read_text(encoding="utf-8")
+            bibtex_section = f"--- BibTeX ---\n\n{bibtex}\n\n"
+            out_path.write_text(bibtex_section + existing_text, encoding="utf-8")
+            print("BibTeX prepended to output.", file=sys.stderr)
+            n_chars = len(out_path.read_text(encoding="utf-8"))
+            n_tokens_approx = n_chars // 4
+        else:
+            print(
+                f"WARNING: Could not fetch BibTeX from provided URL: {args.url}",
+                file=sys.stderr,
+            )
 
     print(f"Tokens:     ~{n_tokens_approx:,} (≈ chars/4)")
     print(f"Pages:      {n_pages}")

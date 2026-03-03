@@ -15,6 +15,7 @@ uv.lock
 
 # Project runtime
 papers/
+outputs/
 extracted/
 summaries/
 

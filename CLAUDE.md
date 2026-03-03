@@ -17,9 +17,13 @@ The reader's margin notes are the primary signal for voice and emphasis. Highlig
 
 ```
 papers/          ← input: annotated PDFs
-extracted/       ← intermediate: annotated .txt files (one per paper)
-summaries/       ← output: structured summaries (one per paper)
-prompts/         ← versioned prompt templates
+outputs/
+  extracted/     ← intermediate: annotated .txt files (one per paper)
+  prompts/       ← generated prompts ready for model input
+  summaries/     ← optional final summaries
+  bibtex/        ← fetched BibTeX entries
+prompts/
+  templates/     ← versioned runtime prompt templates
 src/             ← extraction and summarisation code
 ```
 
