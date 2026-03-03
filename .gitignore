@@ -14,10 +14,10 @@ uv.lock
 .DS_Store
 
 # Project runtime
-papers/
 outputs/
 extracted/
 summaries/
+papers/
 
 # Secrets
 .env
